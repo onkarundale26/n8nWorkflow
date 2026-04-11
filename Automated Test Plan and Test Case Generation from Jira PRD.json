@@ -1,0 +1,624 @@
+{
+  "name": "Automated Test Plan and Test Case Generation from Jira PRD",
+  "nodes": [
+    {
+      "parameters": {
+        "events": [
+          "jira:issue_updated"
+        ],
+        "additionalFields": {
+          "filter": "status = \"Selected for Development\""
+        }
+      },
+      "id": "952eeb3c-375a-41a3-8105-4840e84b6626",
+      "name": "Jira Status Change",
+      "type": "n8n-nodes-base.jiraTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        96,
+        432
+      ],
+      "webhookId": "4ce6c2ed-4a06-45a6-83c1-c37d6c0b56f4",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "WCO8yfEySUQsVKyw",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "issueKey": "={{ $json.issue.key }}",
+        "additionalFields": {
+          "fields": "description,summary"
+        }
+      },
+      "id": "fc959500-de7b-4d81-b949-fe68d54c8305",
+      "name": "Get Jira Issue Details",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        320,
+        432
+      ],
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "WCO8yfEySUQsVKyw",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "prdUrl",
+              "value": "={{ $json.fields.description.match(/https:\\/\\/drive\\.google\\.com\\/file\\/d\\/[a-zA-Z0-9_-]+/)[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "jiraKey",
+              "value": "={{ $json.key }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "summary",
+              "value": "={{ $json.fields.summary }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9b078807-4e09-417e-b712-ff3ff6769c0d",
+      "name": "Extract PRD URL",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $json.prdUrl }}"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/plain"
+            }
+          }
+        }
+      },
+      "id": "d2b231bb-f42b-4394-8fd5-7ef7e95c40d8",
+      "name": "Fetch PRD Content",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        768,
+        432
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "lQpVX1ko4XI8cOzl",
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a QA Expert. Based on the following PRD content, create a comprehensive test plan document.\n\n### PROJECT CONTEXT:\nProject Name: Style Haven\nJira Issue: {{ $node[\"Extract PRD URL\"].json[\"jiraKey\"] }}\nSummary: {{ $node[\"Extract PRD URL\"].json[\"summary\"] }}\n\n### PRD CONTENT:\n{{ $node[\"Extract from File\"].json[\"text\"] }}\n\n### INSTRUCTIONS:\n- Fill in all project details using the context provided above.\n- DO NOT use placeholders like [Project Name] or [Jira ID].\n- Format the output in clean Markdown.",
+        "options": {
+          "systemMessage": "You are a QA expert. Generate a detailed test plan that includes: test objectives, scope, test strategy, test environment requirements, test schedule, and risk assessment. Format the output as a well-structured document."
+        }
+      },
+      "id": "d19f25cf-1062-4d5c-8898-56dd0af997ec",
+      "name": "Generate Test Plan",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1376,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "https://docs.google.com/document/d/1dVWiG-410cW1gQM0kNeMAo14LnLR6pt0-F0WM5EMidQ/edit?tab=t.0",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $node['Generate Test Plan'].json['output']}}"
+            }
+          ]
+        }
+      },
+      "id": "e4acd042-057e-4d01-a87d-40a8dddf38ae",
+      "name": "Create Test Plan Doc",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        320
+      ],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "Ln6bflZUD6vS33Ez",
+          "name": "Google Docs OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "testPlanUrl",
+              "value": "=https://docs.google.com/document/d/{{ $json.documentId }}/edit",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "jiraKey",
+              "value": "={{ $node[\"Extract PRD URL\"].json[\"jiraKey\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "73b43b5e-322b-4784-80fe-a839c31aa282",
+      "name": "Format Test Plan URL",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2288,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "beee5f48-ed15-4bd3-90a0-c7c9e36d07f7",
+      "name": "Combine URLs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2512,
+        464
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Based on the following PRD content, create detailed test cases for the Style Haven project.\n\nJira Issue: {{ $node[\"Extract PRD URL\"].json[\"jiraKey\"] }}\nSummary: {{ $node[\"Extract PRD URL\"].json[\"summary\"] }}\n\nPRD Content:\n{{ $node[\"Extract from File\"].json[\"text\"] }}\n\nInstructions:\nGenerate a JSON array of objects. Do not include markdown formatting.",
+        "options": {
+          "systemMessage": "You are a QA expert. Generate comprehensive test cases in a structured format. For each test case, provide: Test Case ID, Test Case Name, Preconditions, Test Steps, Expected Results, and Priority. Output the test cases as a JSON array with these fields: testCaseId, testCaseName, preconditions, testSteps, expectedResults, priority."
+        }
+      },
+      "id": "56224cc9-94b5-419f-affe-e74a2aaad20c",
+      "name": "Generate Test Cases",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1328,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "testCasesUrl",
+              "value": "https://docs.google.com/spreadsheets/d/1U0gz8gLCHOEIjYY92LWCItnih7ahWoh2kHQ1GmuoSIQ/edit",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "jiraKey",
+              "value": "={{ $node[\"Extract PRD URL\"].json[\"jiraKey\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fbb2e166-113c-461d-b4e5-bbdf16627876",
+      "name": "Format Test Cases URL",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2288,
+        608
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "sendTo": "onkarundale26@gmail.com",
+        "subject": "=Test Plan & Test Cases Ready - {{ $json.jiraKey }}",
+        "message": "=<h2>Test Plan and Test Cases Generated</h2>\n<p>The test plan and test cases for <strong>{{ $json.jiraKey }}</strong> have been automatically generated.</p>\n<h3>Documents:</h3>\n<ul>\n<li><a href=\"{{ $json.testPlanUrl }}\">Test Plan Document</a></li>\n<li><a href=\"{{ $json.testCasesUrl }}\">Test Cases Spreadsheet</a></li>\n</ul>",
+        "options": {}
+      },
+      "id": "946b2316-0083-45a0-b695-1af5a703e6c9",
+      "name": "Send Email Notification",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2736,
+        464
+      ],
+      "webhookId": "18199da7-d97b-4706-851b-5a021395a049",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "qlPRx7T5ahQQV6pk",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        800
+      ],
+      "id": "ac91e633-3200-4827-a563-9133c3a23b72",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "p84EhfkhrlSWzs9w",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        384
+      ],
+      "id": "acac1d50-3a63-451f-b8b1-a8fa5c9f3406",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "p84EhfkhrlSWzs9w",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        992,
+        432
+      ],
+      "id": "fa33a2d2-fa30-466f-9dfe-f3e2d21abef5",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawOutput = $node[\"Generate Test Cases\"].json[\"output\"];\nconst testCases = JSON.parse(rawOutput);\n\nreturn testCases.map(tc => {\n  return {\n    json: {\n      \"ID\": tc.testCaseId,\n      \"Name\": tc.testCaseName,\n      \"Preconditions\": tc.preconditions,\n      \"Steps\": Array.isArray(tc.testSteps) ? tc.testSteps.join('\\n') : tc.testSteps,\n      \"Expected Results\": tc.expectedResults,\n      \"Priority\": tc.priority\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        624
+      ],
+      "id": "ca870472-2197-4c5f-af17-d9d26b633711",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1U0gz8gLCHOEIjYY92LWCItnih7ahWoh2kHQ1GmuoSIQ",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Preconditions",
+              "displayName": "Preconditions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Steps",
+              "displayName": "Steps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Expected Results",
+              "displayName": "Expected Results",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1872,
+        624
+      ],
+      "id": "3cd88297-0e8e-4655-bb83-f7c2997436b0",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "cuM3p9SD0frCLbbk",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Jira Status Change": {
+      "main": [
+        [
+          {
+            "node": "Get Jira Issue Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Jira Issue Details": {
+      "main": [
+        [
+          {
+            "node": "Extract PRD URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PRD URL": {
+      "main": [
+        [
+          {
+            "node": "Fetch PRD Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch PRD Content": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Test Plan": {
+      "main": [
+        [
+          {
+            "node": "Create Test Plan Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Test Plan Doc": {
+      "main": [
+        [
+          {
+            "node": "Format Test Plan URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Test Plan URL": {
+      "main": [
+        [
+          {
+            "node": "Combine URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine URLs": {
+      "main": [
+        [
+          {
+            "node": "Send Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Test Cases": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Test Cases URL": {
+      "main": [
+        [
+          {
+            "node": "Combine URLs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Test Plan",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Test Cases",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Generate Test Plan",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Test Cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Format Test Cases URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f7b41253-d62f-4c79-9ebd-c0e2050fdb3f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "21a715099b43c76339c1a85ca2a82748023bb2f30107ccf842dd44356dc13acd"
+  },
+  "id": "uf6xWyGW31EMaaXp",
+  "tags": []
+}

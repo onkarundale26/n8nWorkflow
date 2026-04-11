@@ -1,0 +1,489 @@
+{
+  "name": "AI-Powered Test Plan Generator from Jira and PRD to Google Docs",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "03325d88-e923-4329-be7f-230e628c335f",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "file_id",
+              "name": "fileId",
+              "value": "1vMfXVqj1AIDVxk5NYiEuQo7vpnJh3Uky",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9f6be3ae-50be-419c-bd96-23eadd1ae6ab",
+      "name": "Extract File ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        464,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.fileId }}"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/plain",
+              "slidesToFormat": "application/pdf"
+            }
+          }
+        }
+      },
+      "id": "327ad1cb-dc96-422d-b44d-4f44f917c177",
+      "name": "Download File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        688,
+        304
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "lQpVX1ko4XI8cOzl",
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "b3f0115d-01e3-4908-91fd-4bc52d360bf0",
+      "name": "Extract Text from File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        912,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        528
+      ],
+      "id": "a246956c-961f-4514-a863-40724697fc3d",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "p84EhfkhrlSWzs9w",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "1dVWiG-410cW1gQM0kNeMAo14LnLR6pt0-F0WM5EMidQ",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $node[\"Test Planner\"].json[\"output\"] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        304
+      ],
+      "id": "b16eb74e-10b1-435a-8439-dd065ab42e2a",
+      "name": "Update a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "Ln6bflZUD6vS33Ez",
+          "name": "Google Docs OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert QA Automation Engineer specializing in e-commerce testing (Style Haven). \n\nAnalyze the provided Test Plan below and generate a comprehensive list of Test Cases. \n\n### TEST PLAN INPUT:\n{{ $node[\"Test Planner\"].json[\"output\"] }}\n\n### OUTPUT REQUIREMENTS:\nReturn the test cases in a clear, tabular format. For each test case, include:\n1. **ID**: (e.g., TC_001)\n2. **Title**: Concise description of the test.\n3. **Priority**: (High/Medium/Low)\n4. **Steps**: Numbered execution steps.\n5. **Expected Result**: What should happen.\n6. **Automation Hint**: Suggest a Playwright locator or a Java-based assertion.\n\n### FORMATTING RULE:\n### FORMATTING RULE:\nOutput ONLY a valid JSON array of objects. Do not include any Markdown code blocks (like ```json), no backticks, and no conversational text. \n\nThe JSON structure must be:\n[\n  {\n    \"ID\": \"TC_001\",\n    \"Title\": \"...\",\n    \"Priority\": \"...\",\n    \"Steps\": \"...\",\n    \"Expected Result\": \"...\",\n    \"Automation Hint\": \"...\"\n  }\n]",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        272,
+        592
+      ],
+      "id": "c2531f66-f899-427d-9c23-a340a86988cc",
+      "name": "Test Cases Generator"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        256,
+        768
+      ],
+      "id": "bbefca2a-df4a-49ed-b1cf-b05e6c9cc7c3",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "p84EhfkhrlSWzs9w",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Senior QA Engineer. \n\nAnalyze the following PRD and generate a complete Test Plan.\n\nPRD Content:\n{{ $node[\"Extract Text from File\"].json[\"text\"] }}",
+        "options": {}
+      },
+      "id": "639797cc-5b0a-450f-9b0d-2484b35c1c14",
+      "name": "Test Planner",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1152,
+        304
+      ],
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1U0gz8gLCHOEIjYY92LWCItnih7ahWoh2kHQ1GmuoSIQ",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1U0gz8gLCHOEIjYY92LWCItnih7ahWoh2kHQ1GmuoSIQ/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "output"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Steps",
+              "displayName": "Steps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Expected Result",
+              "displayName": "Expected Result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Automation Hint",
+              "displayName": "Automation Hint",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        816,
+        592
+      ],
+      "id": "bfb143bd-a45f-4282-9d51-4276872c5c9d",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "cuM3p9SD0frCLbbk",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let aiOutput = $node[\"Test Cases Generator\"].json[\"output\"].trim();\n\n// 1. Fix common AI formatting issues (remove markdown backticks if present)\naiOutput = aiOutput.replace(/```json/g, \"\").replace(/```/g, \"\").trim();\n\n// 2. Handle truncated JSON (The \"Repair\" Logic)\nif (!aiOutput.endsWith(']')) {\n    // Find the last complete object and cut off the trailing junk\n    const lastCompleteIndex = aiOutput.lastIndexOf('}');\n    if (lastCompleteIndex !== -1) {\n        aiOutput = aiOutput.substring(0, lastCompleteIndex + 1) + ']';\n    }\n}\n\ntry {\n    const testCases = JSON.parse(aiOutput);\n    return testCases.map(tc => ({ json: tc }));\n} catch (e) {\n    // If it still fails, return an error object so the workflow doesn't just stop\n    return [{ json: { error: \"JSON still invalid\", raw: aiOutput.substring(0, 100) } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        592
+      ],
+      "id": "9e767bf7-4086-4b2b-ab53-652920bb1ba3",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1104,
+        656
+      ],
+      "id": "03f43d3e-136d-4150-ada5-dfef0242058b",
+      "name": "Merge",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "sendTo": "onkarundale26@gmail.com",
+        "subject": "=Style Haven: Automated QA Suite Ready - {{ $node[\"Test Planner\"].json[\"title\"] || \"VWO Login\" }}",
+        "message": "Hello Onkar,\n\nThe automated QA suite for the Style Haven VWO module is now complete. Both the high-level strategy and detailed test cases have been synchronized.\n\n### 📝 Test Plan (Google Doc)\nURL: https://docs.google.com/document/d/1dVWiG-410cW1gQM0kNeMAo14LnLR6pt0-F0WM5EMidQ/edit\n\n### 📊 Test Cases (Google Sheet)\nURL: https://docs.google.com/spreadsheets/d/1U0gz8gLCHOEIjYY92LWCItnih7ahWoh2kHQ1GmuoSIQ/edit?pli=1&gid=0#gid=0\n\n---\n**Summary of Execution:**\n- **Module:** VWO Login Dashboard\n- **Total Test Cases:** 15+ cases generated\n- **Includes:** Functional, Security, and Playwright Automation Hints\n\nBest regards,\nn8n QA Automation Bot",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        656
+      ],
+      "id": "5a5dfef9-d923-4998-a59e-3d4aa1a2293c",
+      "name": "Send a message",
+      "webhookId": "91a7b853-42db-4cef-a325-2bcf6ff37bec",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "qlPRx7T5ahQQV6pk",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Extract File ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract File ID": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Extract Text from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text from File": {
+      "main": [
+        [
+          {
+            "node": "Test Planner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Test Planner",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Test Cases Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Planner": {
+      "main": [
+        [
+          {
+            "node": "Update a document",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Test Cases Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Cases Generator": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Update a document": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d458c930-3cb0-4c6c-a015-52126fdeb90e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "21a715099b43c76339c1a85ca2a82748023bb2f30107ccf842dd44356dc13acd"
+  },
+  "id": "0iBIzCzUExYO8j9F",
+  "tags": []
+}

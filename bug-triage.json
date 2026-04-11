@@ -1,0 +1,719 @@
+{
+  "name": "AI-Powered Jira Test Plan and Test Case Generation",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "get",
+        "issueKey": "=AW-17",
+        "additionalFields": {
+          "expand": "renderedFields,changelog",
+          "fields": "*all"
+        }
+      },
+      "id": "e442323d-5e93-4906-a163-dfc7034b32f3",
+      "name": "Fetch Jira Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        -1696,
+        -960
+      ],
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "WCO8yfEySUQsVKyw",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "ticketKey",
+              "value": "={{ $json.key }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "summary",
+              "value": "={{ $json.fields.summary }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "description",
+              "value": "={{ $json.fields.description }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "priority",
+              "value": "={{ $json.fields.priority.name }}",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "status",
+              "value": "={{ $json.fields.status.name }}",
+              "type": "string"
+            },
+            {
+              "id": "6",
+              "name": "issueType",
+              "value": "={{ $json.fields.issuetype.name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "72ec7ccf-7e66-49e7-aff6-d57df22dd87d",
+      "name": "Extract Ticket Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1472,
+        -960
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze this Jira bug ticket and identify:\n1. Testing scope - what needs to be tested\n2. Affected modules - which parts of the system are impacted\n3. Risk areas - what could go wrong\n4. Required test types - functional, UI, integration, regression, etc.\n5. Dependencies - what systems or components are involved\n\nTicket: {{ $json.ticketKey }}\nSummary: {{ $json.summary }}\nDescription: {{ $json.description }}\nPriority: {{ $json.priority }}\nType: {{ $json.issueType }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an expert QA analyst. Analyze bug tickets thoroughly to identify testing requirements, affected areas, and risks."
+        }
+      },
+      "id": "60d351ea-873b-45ec-9a03-e5f40eee06cf",
+      "name": "AI Analyst",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -1248,
+        -960
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"testingScope\": \"Mobile login functionality\",\n  \"affectedModules\": [\n    \"Authentication\",\n    \"Mobile UI\"\n  ],\n  \"riskAreas\": [\n    \"User access\",\n    \"Security\"\n  ],\n  \"requiredTestTypes\": [\n    \"Functional\",\n    \"UI\",\n    \"Regression\"\n  ],\n  \"dependencies\": [\n    \"Mobile app\",\n    \"Authentication service\"\n  ]\n}"
+      },
+      "id": "3ac0ba7f-5cb9-4312-aeb0-0288b53be8f6",
+      "name": "Analyst Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1120,
+        -736
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Create a comprehensive professional test plan document based on this analysis.\n\nTicket: {{ $(\"Extract Ticket Data\").item.json.ticketKey }}\nSummary: {{ $(\"Extract Ticket Data\").item.json.summary }}\nPriority: {{ $(\"Extract Ticket Data\").item.json.priority }}\n\nAnalysis:\nTesting Scope: {{ $json.output.testingScope }}\nAffected Modules: {{ $json.output.affectedModules }}\nRisk Areas: {{ $json.output.riskAreas }}\nRequired Test Types: {{ $json.output.requiredTestTypes }}\nDependencies: {{ $json.output.dependencies }}\n\nInclude:\n1. Test Objectives\n2. Test Strategy\n3. Scope (In-scope and Out-of-scope)\n4. Entry and Exit Criteria\n5. Severity Analysis (Critical/High/Medium/Low)\n6. Priority Classification\n7. Business Impact Assessment\n8. Test Environment Requirements\n9. Risks and Mitigation\n\nFormat as a professional document with clear sections.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an expert test plan writer. Create detailed, professional test plans following industry best practices and IEEE 829 standards."
+        }
+      },
+      "id": "435d307f-58f5-441c-aac0-6a5a693935e6",
+      "name": "AI Test Plan Writer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -896,
+        -960
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Generate 15-25 detailed test cases for this bug based on the test plan.\n\nTicket: {{ $(\"Extract Ticket Data\").item.json.ticketKey }}\nSummary: {{ $(\"Extract Ticket Data\").item.json.summary }}\n\nTest Plan Summary:\n{{ $(\"AI Test Plan Writer\").item.json.output }}\n\nGenerate test cases covering:\n1. Positive scenarios (happy path)\n2. Negative scenarios (error handling)\n3. Edge cases (boundary conditions)\n4. Regression scenarios (ensure no side effects)\n5. Cross-device compatibility\n6. Performance scenarios\n\nEach test case must include:\n- testCaseId (unique ID like TC001, TC002, etc.)\n- title (clear, concise test case name)\n- description (what is being tested)\n- preconditions (setup required)\n- testSteps (numbered steps to execute)\n- expectedResult (what should happen)\n- testType (Functional, UI, Regression, etc.)\n- priority (High, Medium, Low)\n- severity (Critical, High, Medium, Low)",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an expert test case designer. Create comprehensive, detailed test cases that cover all scenarios including positive, negative, edge cases, and regression testing."
+        }
+      },
+      "id": "210b7047-dd9b-46aa-a787-0d41b8a05c33",
+      "name": "AI Test Case Generator",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -544,
+        -960
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"testCases\": [\n    {\n      \"testCaseId\": \"TC001\",\n      \"title\": \"Verify login button is visible on mobile\",\n      \"description\": \"Test that the login button is displayed correctly on mobile devices\",\n      \"preconditions\": \"User is on login page\",\n      \"testSteps\": \"1. Open app on mobile\\n2. Navigate to login page\\n3. Verify button is visible\",\n      \"expectedResult\": \"Login button is visible and properly styled\",\n      \"testType\": \"Functional\",\n      \"priority\": \"High\",\n      \"severity\": \"High\"\n    }\n  ]\n}"
+      },
+      "id": "bdfec2df-4626-40de-94e3-0c2d23142bcf",
+      "name": "Test Case Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -416,
+        -736
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "testCases",
+        "options": {
+          "fileName": "=Test_Cases_{{ $(\"Extract Ticket Data\").item.json.ticketKey }}.xlsx",
+          "headerRow": true,
+          "sheetName": "Test Cases"
+        }
+      },
+      "id": "4dcab033-fb1e-4647-a32c-b616bc6356b1",
+      "name": "Convert to Excel",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        32,
+        -960
+      ]
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "testCases",
+        "name": "=Test_Cases_{{ $(\"Extract Ticket Data\").item.json.ticketKey }}.xlsx",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1dC2rIf_DowB5rRERpamn2zqYf0H5ReSt",
+          "mode": "list",
+          "cachedResultName": "Zprd",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1dC2rIf_DowB5rRERpamn2zqYf0H5ReSt"
+        },
+        "options": {
+          "simplifyOutput": true
+        }
+      },
+      "id": "9aede9f4-be16-4299-970e-688725cea2ee",
+      "name": "Upload to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        256,
+        -960
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "lQpVX1ko4XI8cOzl",
+          "name": "Google Drive OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "onkarundale26@gmail.com",
+        "subject": "=Test Plan and Cases for {{ $(\"Extract Ticket Data\").item.json.ticketKey }}: {{ $(\"Extract Ticket Data\").item.json.summary }}",
+        "message": "=<h2>Test Plan Generated for {{ $(\"Extract Ticket Data\").item.json.ticketKey }}</h2>\n<p><strong>Summary:</strong> {{ $(\"Extract Ticket Data\").item.json.summary }}</p>\n<p><strong>Priority:</strong> {{ $(\"Extract Ticket Data\").item.json.priority }}</p>\n\n<h3>Test Plan</h3>\n<pre>{{ $(\"AI Test Plan Writer\").item.json.output }}</pre>\n\n<h3>Test Cases</h3>\n<p>{{ $(\"AI Test Case Generator\").item.json.output.testCases.length }} test cases have been generated and uploaded to Google Drive.</p>\n<p><a href=\"{{ $(\"Upload to Google Drive\").item.json.webViewLink }}\">View Test Cases in Google Drive</a></p>\n\n<p>The Excel file contains all detailed test cases ready for execution.</p>",
+        "options": {
+          "appendAttribution": true
+        }
+      },
+      "id": "d5ca04d9-031c-4b5c-b4bd-9d98003111d9",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        -960
+      ],
+      "webhookId": "2e03a888-f0fc-4280-a3c9-1a10f2defcbc",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "qlPRx7T5ahQQV6pk",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# Generate jira ticket based on following inforamtion jira fields.\n\n{{ $json.body.summary }}\n\n{{ $json.body.description }}\n\n# Based on summary and descriptionn you need to provide add \"Steps to reproduce:\", \"Expected result:\", \"Actual Result:\"\n\n{{ $json.body.priority }} \"numeric_id_here\" \n\n# Analyze the incoming bug data and return a JSON object. You must map the priority to the following numeric IDs:\n\nIf the priority is Blocker, return 1.\n\nIf the priority is High, return 2.\n\nIf the priority is Medium, return 3.\n\nIf the priority is Low, return 4.\n\n{{ $json.body.screenshotPath }}\n\n# Add Screenshot details",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a bug report formatter. Analyze the user's bug report and extract: summary (brief title), description (detailed explanation), priority (Low/Medium/High based on severity), and issueType (always \"Bug\"). Return structured JSON."
+        }
+      },
+      "id": "5c5fb58d-96d8-4e2d-b099-a1bc90f615cb",
+      "name": "Format Bug Report",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -1696,
+        -528
+      ]
+    },
+    {
+      "parameters": {
+        "project": {
+          "__rl": true,
+          "value": "10002",
+          "mode": "list",
+          "cachedResultName": "AwesomeTesting"
+        },
+        "issueType": {
+          "__rl": true,
+          "value": "10012",
+          "mode": "list",
+          "cachedResultName": "Bug"
+        },
+        "summary": "={{ $json.output.summary }}",
+        "additionalFields": {
+          "description": "={{ $json.output.description }}",
+          "priority": {
+            "__rl": true,
+            "mode": "list",
+            "value": "={{ $json.output.priority }}"
+          }
+        }
+      },
+      "id": "26ef3bea-5e26-4d13-afae-de0fdcca51c6",
+      "name": "Create Jira Issue",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        -1344,
+        -528
+      ],
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "WCO8yfEySUQsVKyw",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bug-report",
+        "options": {}
+      },
+      "id": "62f1148c-deeb-4b56-bca6-fc3bea804247",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1920,
+        -528
+      ],
+      "webhookId": "5381c70e-bb62-473a-a105-b653831517e0"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1696,
+        -304
+      ],
+      "id": "1a550395-09f4-4806-9176-ebee50edb17d",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "6PxVE9RzJCP86SfE",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"summary\": \"Login error issue\",\n  \"description\": \"User unable to login due to incorrect error message\",\n  \"priority\": \"High\",\n  \"issuetype\": \"Bug\"\n}"
+      },
+      "id": "c8fa0287-d955-430d-abea-7a283bfa4665",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1568,
+        -304
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1248,
+        -736
+      ],
+      "id": "a5d8ddc7-dd13-4c87-b248-b69add7c3f95",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "6PxVE9RzJCP86SfE",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"bug_triage\": {\n    \"bug_id\": \"VWO-XX\",\n    \"summary\": \"Login displays misleading error message mentioning IP/location mismatch when credentials are incorrect\",\n    \"severity\": \"High\",\n    \"priority\": \"P1\",\n    \"impact_analysis\": {\n      \"user_experience\": \"Confusing error message\",\n      \"business\": \"Drop in login success rate\",\n      \"support\": \"Increased support tickets\",\n      \"security_perception\": \"Users may think account is compromised\"\n    },\n    \"root_cause\": \"Generic error handler used for multiple validation failures and improper mapping of backend error codes\",\n    \"affected_modules\": [\n      \"Authentication Service\",\n      \"Login UI\",\n      \"Error Handling Layer\"\n    ],\n    \"risks\": [\n      \"High user frustration\",\n      \"Reduced trust in application\",\n      \"Potential loss of users\"\n    ],\n    \"recommendation\": [\n      \"Fix error message mapping\",\n      \"Show specific error for invalid credentials\",\n      \"Log backend validation errors separately\"\n    ],\n    \"triage_decision\": \"Fix in next release (Hotfix recommended)\"\n  },\n\n  \"test_plan\": {\n    \"test_plan_id\": \"TP-LOGIN-ERROR-001\",\n    \"objective\": \"To validate correct error messaging behavior during login failures and ensure accurate user feedback\",\n\n    \"scope\": {\n      \"in_scope\": [\n        \"Login functionality\",\n        \"Error message validation\",\n        \"Credential validation scenarios\"\n      ],\n      \"out_of_scope\": [\n        \"Signup flow\",\n        \"Password reset\",\n        \"Third-party authentication\"\n      ]\n    },\n\n    \"modules\": [\n      \"Authentication API\",\n      \"Login UI\",\n      \"Error Handling System\"\n    ],\n\n    \"test_strategy\": [\n      {\n        \"type\": \"Functional Testing\",\n        \"description\": \"Validate login scenarios\"\n      },\n      {\n        \"type\": \"Negative Testing\",\n        \"description\": \"Invalid credentials handling\"\n      },\n      {\n        \"type\": \"UI Testing\",\n        \"description\": \"Error message validation\"\n      },\n      {\n        \"type\": \"Regression Testing\",\n        \"description\": \"Ensure no impact on login flow\"\n      },\n      {\n        \"type\": \"Usability Testing\",\n        \"description\": \"Message clarity\"\n      }\n    ],\n\n    \"test_environment\": {\n      \"browsers\": [\"Chrome\", \"Firefox\"],\n      \"os\": [\"Windows 10\", \"MacOS\"],\n      \"environment\": [\"Staging\", \"Production\"]\n    },\n\n    \"test_data\": [\n      {\n        \"scenario\": \"Valid Login\",\n        \"email\": \"user@test.com\",\n        \"password\": \"correct123\"\n      },\n      {\n        \"scenario\": \"Invalid Password\",\n        \"email\": \"user@test.com\",\n        \"password\": \"wrong123\"\n      },\n      {\n        \"scenario\": \"Invalid Email\",\n        \"email\": \"wrong@test.com\",\n        \"password\": \"correct123\"\n      }\n    ],\n\n    \"entry_criteria\": [\n      \"Application deployed\",\n      \"Login module accessible\",\n      \"Test data available\"\n    ],\n\n    \"exit_criteria\": [\n      \"All test cases executed\",\n      \"No critical defects open\",\n      \"Bug fix validated\"\n    ],\n\n    \"risks_and_mitigation\": [\n      {\n        \"risk\": \"Incorrect fix\",\n        \"mitigation\": \"Add regression suite\"\n      },\n      {\n        \"risk\": \"Message inconsistency\",\n        \"mitigation\": \"Validate across browsers\"\n      }\n    ],\n\n    \"severity_priority_justification\": {\n      \"severity\": \"High - Core feature affected\",\n      \"priority\": \"High (P1) - Impacts user experience significantly\"\n    },\n\n    \"deliverables\": [\n      \"Test cases (Excel)\",\n      \"Execution report\",\n      \"Defect report\"\n    ]\n  }\n}"
+      },
+      "id": "f9b10bde-51e1-4b32-aa90-58b9e526231e",
+      "name": "Analyst Output Parser1",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -768,
+        -736
+      ]
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        -736
+      ],
+      "id": "e8564f73-f7f8-4b9c-abcf-a9c798ea649a",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "p84EhfkhrlSWzs9w",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        -736
+      ],
+      "id": "a0813159-d074-463f-813e-7989e12dd1e7",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "p84EhfkhrlSWzs9w",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1920,
+        -960
+      ],
+      "id": "345ab49b-3585-4ed4-874b-37f16b60375f",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output.testCases",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        -960
+      ],
+      "id": "61111f53-086b-4822-b129-e7858c3ea7b0",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "content": "# Jira Bug Creator",
+        "height": 560,
+        "width": 848
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2016,
+        -720
+      ],
+      "typeVersion": 1,
+      "id": "51c54b55-d7fc-4896-a93b-bc0c2677187f",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "# Jira bug fetch and prepare TestPlan and TestCases",
+        "height": 704,
+        "width": 2896,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2128,
+        -1296
+      ],
+      "typeVersion": 1,
+      "id": "8f7fbcdc-272a-4b70-b4ed-5dd587e5e507",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# **REAL LIVE Project( Multi Agent System) - Test Plan, Writer, Bug -> Triaging. **\n[﻿bugzz.atlassian.net/browse/VWO-48](https://bugzz.atlassian.net/browse/VWO-48) \n\nOutput : A professional Test Plan document for the Bug Occured (.docx)\n\nPipeline:\n\n1. JiraFetcherTool → fetches ticket from Jira REST API\n2. Test Plan Analyst → analyzes the ticket & identifies scope\n3. Test Plan Writer → writes the full test plan using a template,  the severity, priority, and let us know how important this bug is \n\n\n> JIRA Ticket -> Test Plan, TestCases -> Excel File (Templates which are given by us)\n\n\n\nSetup your Own JIRA for the token - \n\n[﻿www.loom.com/share/47e8ed337bce40b285364c8aab349701](https://www.loom.com/share/47e8ed337bce40b285364c8aab349701) \n\nTest Plan Template. - [﻿https://docs.google.com/document/d/1JoeTJRM2-D6RBtPCpztX3OYH9apewHLb7f5jarCCVkg/edit?usp=sharing](https://docs.google.com/document/d/1JoeTJRM2-D6RBtPCpztX3OYH9apewHLb7f5jarCCVkg/edit?usp=sharing) \n\nAll Templates - \n\n[﻿https://sdet.live/project1](https://sdet.live/project1)\n\n",
+        "height": 528,
+        "width": 896
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -192,
+        -752
+      ],
+      "typeVersion": 1,
+      "id": "2fdcb711-0511-4d95-a82b-de0f11629f3d",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Fetch Jira Ticket": {
+      "main": [
+        [
+          {
+            "node": "Extract Ticket Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Ticket Data": {
+      "main": [
+        [
+          {
+            "node": "AI Analyst",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analyst": {
+      "main": [
+        [
+          {
+            "node": "AI Test Plan Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyst Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Analyst",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Test Plan Writer": {
+      "main": [
+        [
+          {
+            "node": "AI Test Case Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Test Case Generator": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Case Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Test Case Generator",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to Excel": {
+      "main": [
+        [
+          {
+            "node": "Upload to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Bug Report": {
+      "main": [
+        [
+          {
+            "node": "Create Jira Issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Format Bug Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Format Bug Report",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Format Bug Report",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Jira Issue": {
+      "main": [
+        []
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Analyst",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyst Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Test Plan Writer",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Test Plan Writer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Test Case Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Fetch Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Convert to Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8e4800fb-332f-4627-b6d4-1d60b1e6eb1f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "21a715099b43c76339c1a85ca2a82748023bb2f30107ccf842dd44356dc13acd"
+  },
+  "id": "FSN3cT2P9SGuoxka",
+  "tags": []
+}
