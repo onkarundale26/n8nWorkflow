@@ -1,0 +1,460 @@
+{
+  "name": "Advanced RAG Agent with Pinecone - FIXED",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Upload CSV for RAG",
+        "formDescription": "Upload a CSV file to add documents to the knowledge base",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "CSV File",
+              "fieldType": "file",
+              "fieldName": "file",
+              "acceptFileTypes": ".csv",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "88dcc704-f46a-4820-81fd-4c93459c5be2",
+      "name": "Upload CSV Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        64,
+        112
+      ],
+      "webhookId": "961095db-ed2d-4b5c-93db-5c9524e525ec"
+    },
+    {
+      "parameters": {
+        "binaryPropertyName": "file",
+        "options": {
+          "headerRow": true
+        }
+      },
+      "id": "80c0eab1-dc2c-4eff-bed1-e561793220f2",
+      "name": "Extract CSV Data",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        288,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  const summary = item.json.summary || \"\";\n  const steps = item.json.steps || \"\";\n\n  item.json.content = `Test Case:\\nSummary: ${summary}\\nSteps: ${steps}`;\n}\nreturn $input.all();"
+      },
+      "id": "9b1d79a4-8a31-4b3a-bea9-e2cd9b437f04",
+      "name": "Prepare Documents",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "rag-test250-index",
+          "mode": "id"
+        },
+        "embeddingBatchSize": 50,
+        "options": {
+          "pineconeNamespace": "test-data"
+        }
+      },
+      "id": "c52c8c90-206c-4724-aa8d-60897a3d7d10",
+      "name": "Insert into Pinecone",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        768,
+        112
+      ],
+      "credentials": {
+        "pineconeApi": {
+          "id": "fJu4TPTgFocFhBa1",
+          "name": "Pinecone account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "text",
+                "value": "={{ $json.content }}"
+              },
+              {
+                "name": "jira_id",
+                "value": "={{ $json.jira_id }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "ffe11b43-9486-4fa3-be81-312c226a0c91",
+      "name": "Document Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        864,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "chunkSize": 500,
+        "chunkOverlap": 50,
+        "options": {}
+      },
+      "id": "808ab8e3-ce26-4c4d-b4f6-648ffbeb5ad0",
+      "name": "Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        944,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "public": true,
+        "options": {
+          "inputPlaceholder": "Ask about login, checkout, etc...",
+          "subtitle": "Ask questions about test cases",
+          "title": "RAG Assistant"
+        }
+      },
+      "id": "d52bea7a-4ef3-4083-9ed2-01e3e4d38dff",
+      "name": "Chat Interface",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        1184,
+        128
+      ],
+      "webhookId": "0a158bce-f89d-4959-baf8-6f99a23810b7"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a RAG assistant.\n\nRules:\n- Use retrieved context\n- If similar meaning exists, still answer\n- Do not strictly depend on exact keyword match\n- If nothing found, say no data available"
+        }
+      },
+      "id": "705801b3-f0d6-46d4-8a8f-00cb3f27835e",
+      "name": "RAG Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1440,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "id": "4ce356b8-347e-4772-b2c0-120b3e811a20",
+      "name": "Groq Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        352
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "E5VZ2EeFY7mQOSkS",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this tool to search for test cases in the knowledge base. Query with keywords related to test scenarios, features, or JIRA IDs.",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "rag-test250-index",
+          "mode": "id"
+        },
+        "topK": 5,
+        "useReranker": true,
+        "options": {
+          "pineconeNamespace": "test-data"
+        }
+      },
+      "id": "58ea1062-2410-4877-b9a9-d593c158e282",
+      "name": "Pinecone Retriever",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        1664,
+        272
+      ],
+      "credentials": {
+        "pineconeApi": {
+          "id": "fJu4TPTgFocFhBa1",
+          "name": "Pinecone account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:8b"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        1760
+      ],
+      "id": "842535a0-ecdb-4b68-b1c8-2aeff6057ba5",
+      "name": "Embeddings Ollama1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "5xr7aYoWjTHiPStK",
+          "name": "Ollama account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.rerankerCohere",
+      "typeVersion": 1,
+      "position": [
+        1776,
+        448
+      ],
+      "id": "739a4e4d-24dc-4d4b-9f25-2cca39bb4f14",
+      "name": "Reranker Cohere",
+      "credentials": {
+        "cohereApi": {
+          "id": "OcZO3O5C33pzpQMG",
+          "name": "Cohere account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Ingestion\n",
+        "height": 736,
+        "width": 1136
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "fabde11e-816f-443c-b03d-c0df1a484f70",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "# Retrieve",
+        "height": 736,
+        "width": 1024
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1136,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "f0b41654-cfdb-453a-9ba4-e4ee055030c6",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "modelName": "embed-english-v3.0"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsCohere",
+      "typeVersion": 1,
+      "position": [
+        672,
+        336
+      ],
+      "id": "ec26d9f0-33c7-4bf5-af3a-98e6c7d67739",
+      "name": "Embeddings Cohere",
+      "credentials": {
+        "cohereApi": {
+          "id": "OcZO3O5C33pzpQMG",
+          "name": "Cohere account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "embed-english-v3.0"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsCohere",
+      "typeVersion": 1,
+      "position": [
+        1616,
+        448
+      ],
+      "id": "b44f2ce2-9e08-4fba-bca7-fef431b964f7",
+      "name": "Embeddings Cohere1",
+      "credentials": {
+        "cohereApi": {
+          "id": "OcZO3O5C33pzpQMG",
+          "name": "Cohere account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Upload CSV Form": {
+      "main": [
+        [
+          {
+            "node": "Extract CSV Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract CSV Data": {
+      "main": [
+        [
+          {
+            "node": "Prepare Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Documents": {
+      "main": [
+        [
+          {
+            "node": "Insert into Pinecone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Insert into Pinecone",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Document Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Interface": {
+      "main": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Retriever": {
+      "ai_tool": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama1": {
+      "ai_embedding": [
+        []
+      ]
+    },
+    "Reranker Cohere": {
+      "ai_reranker": [
+        [
+          {
+            "node": "Pinecone Retriever",
+            "type": "ai_reranker",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Cohere": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Insert into Pinecone",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Cohere1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Retriever",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5a59f8cf-7163-4e54-97b2-7284bc9900a0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5782f3dce3047abf40259c648d33c1c02272b4caa034221bedf6a575e1d53318"
+  },
+  "id": "7CtPznQlphmP8D9P",
+  "tags": []
+}
